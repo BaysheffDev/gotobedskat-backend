@@ -24,7 +24,8 @@ app.use(bodyParser.urlencoded());
 //     message TEXT
 // )
 
-// TODO: POST Create user
+//
+// Create user
 app.post('/createuser', async (req, res) => {
   const { username, usercode, usercolor } = req.body;
   let uniqueUser = "";
@@ -65,7 +66,8 @@ app.post('/createuser', async (req, res) => {
   }
 })
 
-// TODO: POST Create user
+//
+// Login user
 app.post('/loginuser', async (req, res) => {
 
   const { username, usercode } = req.body;
@@ -90,17 +92,19 @@ app.post('/loginuser', async (req, res) => {
   }
 })
 
-// TODO: POST Sync with Partner
+//
+// Sync with Partner
 app.post('/sync', async (req, res) => {
 
   const { id, partnername, partnercode } = req.body;
-  const partnerId = "";
+  let partnerId = "";
+  let partnerInfo = "";
 
   const checkPartner = {
     text: `SELECT * FROM users WHERE username = $1 AND usercode = $2`,
     values: [partnername, partnercode]
   }
-  const syncUsers (idToFind, idToSync) => {
+  const syncUsers = (idToFind, idToSync) => {
     return {
       text: `UPDATE users SET partnerid = $1 WHERE id = $2`,
       values: [idToSync, idToFind]
@@ -110,7 +114,8 @@ app.post('/sync', async (req, res) => {
   // Check partner credentials exist
   try {
     const data = await db.query(checkPartner);
-    partnerId = data.rows.length > 1 ? data.rows[0].id : false;
+    partnerInfo = data.rows[0];
+    partnerId = data.rows.length > 0 ? data.rows[0].id : false;
   }
   catch(err) {
     console.log("ERROR 1 /sync: ", err);
@@ -120,38 +125,69 @@ app.post('/sync', async (req, res) => {
     try {
       const syncPartnerToUser = db.query(syncUsers(id, partnerId));
       const syncUserToPartner = db.query(syncUsers(partnerId, id));
-      res.json({success: true});
+      res.json({"success": true, "partnerInfo": partnerInfo});
     }
     catch(err) {
       console.log("ERROR 2 /sync: ", err);
     }
   }
+  else {
+      console.log("Partner Not Found");
+      res.json({"success": false})
+  }
 })
 
-// TODO: POST partner info and times
+//
+// TODO: Get bedtime data
 app.post('/data', async (req, res) => {
   const { userid, partnerid } = req.body;
 
+  // confirm partner is synced
+  const getPartnerInfo = {
+      text: `SELECT * FROM users WHERE partnerid = $1`,
+      values: [userid]
+  }
   const getRecords = (id) => {
-    return checkPartner = {
-      text: `SELECT * FROM records WHERE id = $1`,
+    return {
+      text: `SELECT * FROM records WHERE userid = $1`,
       values: [id]
     }
   }
 
-  try {
-    const userData = await db.query(getRecords(userid));
-    const partnerData = await db.query(getRecords(partnerid));
-    res.json({"userdata": userdata.rows, "partnerdata": partnerdata.rows});
+  const partner = await db.query(getPartnerInfo);
+  if (partner.rows.length > 0) {
+      try {
+          const userData = await db.query(getRecords(userid));
+          const partnerData = await db.query(getRecords(partnerid));
+          console.log(`userdata: ${JSON.stringify(userData.rows)}, partnerdata: ${JSON.stringify(partnerData.rows)}`);
+          res.json({"userdata": userData.rows, "partnerdata": partnerData.rows});
+      }
+      catch(err) {
+          console.log("ERROR /data: ", err);
+          res.json({"success": false});
+      }
   }
-  catch(err) {
-    console.log("ERROR /data: ", err);
+  else {
+      console.log("Not synced to partner");
+      res.json({"success": false, "message": "Not synced to a partner"});
   }
-  res.send("Data");
+
 })
 
 // TODO: POST todays time
 app.post('/bedtime', (req, res) => {
+    const checkToday = {
+      text: `SELECT * FROM users WHERE username = $1 AND usercode = $2`,
+      values: [username, usercode]
+    }
+    const addBedTime = {
+      text: `INSERT INTO records (userid, date, bedtime, message) VALUES ($1, $2, $3, $4) RETURNING *`,
+      values: [username, usercode, usercolor]
+    }
+    const updateBedTime = {
+        text: `UPDATE users SET partnerid = $1 WHERE id = $2`,
+        values: [idToSync, idToFind]
+    }
   res.send("Bedtime");
 })
 
