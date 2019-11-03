@@ -1,5 +1,6 @@
 const express = require('express');
 const bodyParser = require('body-parser');
+const cors = require('cors');
 
 // DATABASE CONNECTION
 const db = require('./db').dbConnection;
@@ -8,21 +9,7 @@ const app = express();
 
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded());
-
-// CREATE TABLE users(
-//     id SERIAL PRIMARY KEY,
-//     username VARCHAR(30) NOT NULL,
-//     usercode VARCHAR(30) NOT NULL,
-//     usercolor VARCHAR(30) NOT NULL,
-//     partnerid INTEGER
-//
-// CREATE TABLE records(
-//     id SERIAL PRIMARY KEY,
-//     userid INTEGER REFERENCES users(id),
-//     date DATE NOT NULL,
-//     bedtime VARCHAR(10) NOT NULL,
-//     message TEXT
-// )
+app.use(cors());
 
 //
 // Create user
@@ -138,14 +125,16 @@ app.post('/sync', async (req, res) => {
 })
 
 //
-// TODO: Get bedtime data
+// Get bedtime data
 app.post('/data', async (req, res) => {
   const { userid, partnerid } = req.body;
 
   // confirm partner is synced
-  const getPartnerInfo = {
+  const getUserInfo = (id) => {
+    return {
       text: `SELECT * FROM users WHERE partnerid = $1`,
-      values: [userid]
+      values: [id]
+    }
   }
   const getRecords = (id) => {
     return {
@@ -154,41 +143,63 @@ app.post('/data', async (req, res) => {
     }
   }
 
-  const partner = await db.query(getPartnerInfo);
-  if (partner.rows.length > 0) {
-      try {
-          const userData = await db.query(getRecords(userid));
-          const partnerData = await db.query(getRecords(partnerid));
-          console.log(`userdata: ${JSON.stringify(userData.rows)}, partnerdata: ${JSON.stringify(partnerData.rows)}`);
-          res.json({"userdata": userData.rows, "partnerdata": partnerData.rows});
+  try {
+      const user = await db.query(getUserInfo(partnerId));
+      const partner = await db.query(getUserInfo(userId));
+      const userData = await db.query(getRecords(userid));
+      const partnerData = await db.query(getRecords(partnerid));
+      if (partner.rows.length > 0) {
+          res.json({"success": true, "userInfo": user.rows[0], "partnerInfo": partner.rows[0], "userData": userData.rows, "partnerData": partnerData.rows});
       }
-      catch(err) {
-          console.log("ERROR /data: ", err);
-          res.json({"success": false});
+      else {
+          console.log("Not synced to partner");
+          res.json({"success": false, "message": "Not synced to a partner"});
       }
   }
-  else {
-      console.log("Not synced to partner");
-      res.json({"success": false, "message": "Not synced to a partner"});
+  catch(err) {
+      console.log("ERROR /data: ", err);
+      res.json({"success": false, "message" : "Failed to get bedtime records"});
   }
 
 })
 
-// TODO: POST todays time
-app.post('/bedtime', (req, res) => {
-    const checkToday = {
-      text: `SELECT * FROM users WHERE username = $1 AND usercode = $2`,
-      values: [username, usercode]
+//
+// Insert or update todays bedtime
+app.post('/bedtime', async (req, res) => {
+    const { userid, partnerid, date, time, message } = req.body;
+
+    const checkToday = (id) => {
+        return {
+          text: `SELECT * FROM records WHERE userid = $1 AND date = $2`,
+          values: [id, date]
+        }
     }
     const addBedTime = {
       text: `INSERT INTO records (userid, date, bedtime, message) VALUES ($1, $2, $3, $4) RETURNING *`,
-      values: [username, usercode, usercolor]
+      values: [userid, date, time, message]
     }
     const updateBedTime = {
-        text: `UPDATE users SET partnerid = $1 WHERE id = $2`,
-        values: [idToSync, idToFind]
+        text: `UPDATE records SET bedtime = $1, message = $2 WHERE userid = $3 AND date = $4 RETURNING *`,
+        values: [time, message, userid, date]
     }
-  res.send("Bedtime");
+
+    try {
+        const userToday = await db.query(checkToday(userid));
+        const partnerToday = await db.query(checkToday(partnerid));
+        const partnerInfo = partnerToday.rows.length > 0 ? partnerToday.rows[0] : false;
+        if (userToday.rows.length > 0) {
+            const update = await db.query(updateBedTime);
+            res.json({"success": true, "userInfo": update.rows[0], "partnerTodayInfo": partnerInfo});
+        }
+        else {
+            const insert = await db.query(addBedTime);
+            res.json({"success": true, "dayInfo": insert.rows[0], "partnerTodayInfo": partnerInfo});
+        }
+    }
+    catch(err) {
+        console.log("ERROR /bedtime: ", err);
+        res.json({"success": false, "message": "Could not update bedtime"});
+    }
 })
 
 app.listen(3001);
