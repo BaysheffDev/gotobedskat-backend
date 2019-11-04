@@ -62,33 +62,36 @@ app.post('/loginuser', async (req, res) => {
     text: `SELECT * FROM users where username = $1 AND usercode = $2`,
     values: [username, usercode]
   }
-  const validatePartner = (id1, id2) => {
+  const validatePartner = (partnerid, userid) => {
      return {
          text: `SELECT * FROM users where id = $1 AND partnerid = $2`,
-         values: [id1, id2]
+         values: [partnerid, userid]
      }
   }
 
-  // Check that the user exists, if yes return user info
   try {
-    const data = await db.query(validateUser);
-    if (data.rows.length > 0) {
-        if (data.rows[0].partnerid) {
-            console.log(data.rows[0].partnerid);
-            userid = data.rows[0].id;
-            partnerid = data.rows[0].partnerid;
-            console.log("HELP");
-            const partner = await db.query(validatePartner(userid, partnerid));
-            console.log("OKOK: ", partner);
-            if (partner.rows.length > 0) {
-                res.json({"success": true, "userinfo": data.rows[0], "partnerid": partner.rows.id});
+    const user = await db.query(validateUser);
+    // Check that the user exists
+    if (user.rows.length > 0) {
+        // Check if user has succesfully added partner credentials
+        if (user.rows[0].partnerid) {
+            userid = user.rows[0].id;
+            partnerid = user.rows[0].partnerid;
+            try {
+              const partner = await db.query(validatePartner(partnerid, userid));
+              if (partner.rows.length > 0) {
+                res.json({"success": true, "userinfo": user.rows[0], "partnerid": partner.rows[0].id});
+              }
+              else {
+                res.json({"success": true, "userinfo": user.rows[0], "partnerid": false});
+              }
             }
-            else {
-                res.json({"success": true, "userinfo": data.rows[0], "partnerid": false});
+            catch(err) {
+              console.log("ERROR /loginuser partner: ", err);
             }
         }
         else {
-            // if havent previously added partner credentials
+            res.json({"success": true, "userinfo": user.rows[0]});
         }
     }
     else {
@@ -96,7 +99,7 @@ app.post('/loginuser', async (req, res) => {
     }
   }
   catch(err) {
-      console.log("ERROR /loginuser: ", err);
+      console.log("ERROR /loginuser user: ", err);
   }
 })
 
