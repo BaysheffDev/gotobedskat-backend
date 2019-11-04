@@ -56,26 +56,47 @@ app.post('/createuser', async (req, res) => {
 //
 // Login user
 app.post('/loginuser', async (req, res) => {
-
   const { username, usercode } = req.body;
 
   const validateUser = {
     text: `SELECT * FROM users where username = $1 AND usercode = $2`,
     values: [username, usercode]
   }
+  const validatePartner = (id1, id2) => {
+     return {
+         text: `SELECT * FROM users where id = $1 AND partnerid = $2`,
+         values: [id1, id2]
+     }
+  }
 
   // Check that the user exists, if yes return user info
   try {
     const data = await db.query(validateUser);
     if (data.rows.length > 0) {
-      res.json(data.rows[0]);
+        if (data.rows[0].partnerid) {
+            console.log(data.rows[0].partnerid);
+            userid = data.rows[0].id;
+            partnerid = data.rows[0].partnerid;
+            console.log("HELP");
+            const partner = await db.query(validatePartner(userid, partnerid));
+            console.log("OKOK: ", partner);
+            if (partner.rows.length > 0) {
+                res.json({"success": true, "userinfo": data.rows[0], "partnerid": partner.rows.id});
+            }
+            else {
+                res.json({"success": true, "userinfo": data.rows[0], "partnerid": false});
+            }
+        }
+        else {
+            // if havent previously added partner credentials
+        }
     }
     else {
-      res.json({success: false});
+        res.json({"success": false});
     }
   }
   catch(err) {
-    console.log("ERROR /loginuser: ", err);
+      console.log("ERROR /loginuser: ", err);
   }
 })
 
