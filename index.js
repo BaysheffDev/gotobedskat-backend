@@ -149,6 +149,32 @@ app.post('/sync', async (req, res) => {
   }
 })
 
+// Check if partner has synced
+app.post('/checksync', async (req, res) => {
+  const { userid } = req.body;
+
+  const getUser = (id) => {
+    return {
+      text: `SELECT partnerid FROM users WHERE id = $1`,
+      values: [id]
+    }
+  }
+
+  try {
+    const partnerId = await db.query(getUser(userid));
+    const partnerSynced = await db.query(getUser(partnerId.rows[0].partnerid));
+    if (partnerSynced.rows[0].partnerid == userid) {
+      res.json({"success": true, "partnerid": partnerId.rows[0].partnerid});
+    }
+    else {
+      res.json({"success": false});
+    }
+  }
+  catch(err) {
+    console.log("ERROR /checksync: ", err);
+  }
+})
+
 // Unsync from partner
 app.post('/unsync', async (req, res) => {
   const { userid } = req.body;
