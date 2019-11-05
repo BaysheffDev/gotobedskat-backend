@@ -62,10 +62,10 @@ app.post('/loginuser', async (req, res) => {
     text: `SELECT * FROM users where username = $1 AND usercode = $2`,
     values: [username, usercode]
   }
-  const validatePartner = (partnerid, userid) => {
+  const validatePartner = (partnerid) => {
      return {
-         text: `SELECT * FROM users where id = $1 AND partnerid = $2`,
-         values: [partnerid, userid]
+         text: `SELECT * FROM users where id = $1`,
+         values: [partnerid]
      }
   }
 
@@ -78,12 +78,13 @@ app.post('/loginuser', async (req, res) => {
             userid = user.rows[0].id;
             partnerid = user.rows[0].partnerid;
             try {
-              const partner = await db.query(validatePartner(partnerid, userid));
-              if (partner.rows.length > 0) {
-                res.json({"success": true, "userinfo": user.rows[0], "partnerid": partner.rows[0].id});
+              const partner = await db.query(validatePartner(partnerid));
+              console.log(partner.rows[0]);
+              if (partner.rows[0].partnerid == userid) {
+                res.json({"success": true, "userinfo": user.rows[0], "partnerinfo": partner.rows[0]});
               }
               else {
-                res.json({"success": true, "userinfo": user.rows[0], "partnerid": false});
+                res.json({"success": true, "userinfo": user.rows[0], "partnerinfo": partner.rows[0].username});
               }
             }
             catch(err) {
@@ -105,9 +106,10 @@ app.post('/loginuser', async (req, res) => {
 
 //
 // Sync with Partner
+// Syncing with someone will replace their existing partner
 app.post('/sync', async (req, res) => {
 
-  const { id, partnername, partnercode } = req.body;
+  const { userid, partnername, partnercode } = req.body;
   let partnerId = "";
   let partnerInfo = "";
 
@@ -115,28 +117,27 @@ app.post('/sync', async (req, res) => {
     text: `SELECT * FROM users WHERE username = $1 AND usercode = $2`,
     values: [partnername, partnercode]
   }
-  const syncUsers = (idToFind, idToSync) => {
+  const syncPartner = (idToFind, idToSync) => {
     return {
       text: `UPDATE users SET partnerid = $1 WHERE id = $2`,
-      values: [idToSync, idToFind]
+      values: [idToFind, idToSync]
     }
   }
 
   // Check partner credentials exist
   try {
-    const data = await db.query(checkPartner);
-    partnerInfo = data.rows[0];
-    partnerId = data.rows.length > 0 ? data.rows[0].id : false;
+    const partner = await db.query(checkPartner);
+    partnerInfo = partner.rows[0];
+    partnerId = partner.rows.length > 0 ? partner.rows[0].id : false;
   }
   catch(err) {
     console.log("ERROR 1 /sync: ", err);
   }
-  // If partner credentials exist, sync user and partner
-  if (partnerId) {
+  // If partner credentials exist, sync user to partner
+  if (partnerId && partnerId != userid) {
     try {
-      const syncPartnerToUser = db.query(syncUsers(id, partnerId));
-      const syncUserToPartner = db.query(syncUsers(partnerId, id));
-      res.json({"success": true, "partnerInfo": partnerInfo});
+      const syncUserToPartner = await db.query(syncPartner(partnerId, userid));
+      res.json({"success": true, "partnerinfo": partnerInfo});
     }
     catch(err) {
       console.log("ERROR 2 /sync: ", err);
@@ -145,6 +146,24 @@ app.post('/sync', async (req, res) => {
   else {
       console.log("Partner Not Found");
       res.json({"success": false})
+  }
+})
+
+// Unsync from partner
+app.post('/unsync', async (req, res) => {
+  const { userid } = req.body;
+
+  const unsyncPartner = {
+      text: `UPDATE users SET partnerid = null WHERE id = $1`,
+      values: [userid]
+  }
+
+  try {
+    const unsync = await db.query(unsyncPartner);
+    res.json({"success": true});
+  }
+  catch(err) {
+    console.log("ERROR 1 /sync: ", err);
   }
 })
 
