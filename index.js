@@ -84,7 +84,7 @@ app.post('/loginuser', async (req, res) => {
                 res.json({"success": true, "userinfo": user.rows[0], "partnerinfo": partner.rows[0]});
               }
               else {
-                res.json({"success": true, "userinfo": user.rows[0], "partnerinfo": partner.rows[0].username});
+                res.json({"success": true, "userinfo": user.rows[0], "partnerinfo": partner.rows[0]});
               }
             }
             catch(err) {
@@ -270,5 +270,11 @@ app.post('/bedtime', async (req, res) => {
         res.json({"success": false, "message": "Could not update bedtime"});
     }
 })
+
+// Update username
+
+// Update usercode
+
+// Update usercolor
 
 app.listen(3001);
