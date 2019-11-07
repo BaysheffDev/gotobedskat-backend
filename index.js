@@ -271,7 +271,24 @@ app.post('/bedtime', async (req, res) => {
     }
 })
 
-// Update username
+// Update setting
+app.post('/update/:setting', async (req, res) => {
+  const { userid, setting } = req.body;
+
+  const updateSetting = {
+    text: `UPDATE users SET ${req.params.setting} = $1 WHERE id = $2`,
+    values: [setting, userid]
+  }
+
+  try {
+    const update = db.query(updateSetting);
+    res.json({"success": true, "setting": update.rows[0][setting]});
+  }
+  catch(err) {
+    console.log("ERROR /update/user: ", err);
+    res.json({"success": false});
+  }
+})
 
 // Update usercode
 
