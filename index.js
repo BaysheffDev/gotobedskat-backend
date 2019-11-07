@@ -213,8 +213,8 @@ app.post('/data', async (req, res) => {
   }
 
   try {
-      const user = await db.query(getUserInfo(partnerId));
-      const partner = await db.query(getUserInfo(userId));
+      const user = await db.query(getUserInfo(partnerid));
+      const partner = await db.query(getUserInfo(userid));
       const userData = await db.query(getRecords(userid));
       const partnerData = await db.query(getRecords(partnerid));
       if (partner.rows.length > 0) {
@@ -227,7 +227,6 @@ app.post('/data', async (req, res) => {
   }
   catch(err) {
       console.log("ERROR /data: ", err);
-      res.json({"success": false, "message" : "Failed to get bedtime records"});
   }
 
 })
@@ -273,15 +272,17 @@ app.post('/bedtime', async (req, res) => {
 
 // Update setting
 app.post('/update/:setting', async (req, res) => {
-  const { userid, setting } = req.body;
+  const { userid, value } = req.body;
+  const setting = req.params.setting;
 
   const updateSetting = {
-    text: `UPDATE users SET ${req.params.setting} = $1 WHERE id = $2`,
-    values: [setting, userid]
+    text: `UPDATE users SET ${setting} = $1 WHERE id = $2 RETURNING *`,
+    values: [value, userid]
   }
 
   try {
-    const update = db.query(updateSetting);
+    const update = await db.query(updateSetting);
+    console.log(update);
     res.json({"success": true, "setting": update.rows[0][setting]});
   }
   catch(err) {
