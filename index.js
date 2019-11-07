@@ -257,7 +257,7 @@ app.post('/bedtime', async (req, res) => {
         const partnerInfo = partnerToday.rows.length > 0 ? partnerToday.rows[0] : false;
         if (userToday.rows.length > 0) {
             const update = await db.query(updateBedTime);
-            res.json({"success": true, "userInfo": update.rows[0], "partnerTodayInfo": partnerInfo});
+            res.json({"success": true, "dayInfo": update.rows[0], "partnerTodayInfo": partnerInfo});
         }
         else {
             const insert = await db.query(addBedTime);
