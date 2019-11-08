@@ -235,7 +235,6 @@ app.post('/data', async (req, res) => {
 // Insert or update todays bedtime
 app.post('/bedtime', async (req, res) => {
     const { userid, partnerid, date, time, message } = req.body;
-
     const checkToday = (id) => {
         return {
           text: `SELECT * FROM records WHERE userid = $1 AND date = $2`,
