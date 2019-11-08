@@ -294,4 +294,4 @@ app.post('/update/:setting', async (req, res) => {
 
 // Update usercolor
 
-app.listen(3001);
+app.listen(process.env.PORT || 3001);
