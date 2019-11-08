@@ -23,7 +23,7 @@ const createRecordsTable = {
     CREATE TABLE records(
         id SERIAL PRIMARY KEY,
         userid INTEGER REFERENCES users(id),
-        date DATE NOT NULL,
+        date VARCHAR(12) NOT NULL,
         bedtime VARCHAR(10) NOT NULL,
         message TEXT
     )`,
