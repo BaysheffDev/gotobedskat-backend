@@ -215,10 +215,27 @@ app.post('/data', async (req, res) => {
   try {
       const user = await db.query(getUserInfo(partnerid));
       const partner = await db.query(getUserInfo(userid));
-      const userData = await db.query(getRecords(userid));
-      const partnerData = await db.query(getRecords(partnerid));
+      let userData = await db.query(getRecords(userid));
+      let partnerData = await db.query(getRecords(partnerid));
+      const dataObject = [{
+          "date": "",
+          "bedtime": "",
+          "message": "",
+      }]
+      if (userData.rows.length < 1) {
+          userData = dataObject;
+      }
+      else {
+          userData = userData.rows;
+      }
+      if (partnerData.rows.length < 1) {
+          partnerData = dataObject;
+      }
+      else {
+          partnerData = partnerData.rows;
+      }
       if (partner.rows.length > 0) {
-          res.json({"success": true, "userInfo": user.rows[0], "partnerInfo": partner.rows[0], "userData": userData.rows, "partnerData": partnerData.rows});
+          res.json({"success": true, "userInfo": user.rows[0], "partnerInfo": partner.rows[0], "userData": userData, "partnerData": partnerData});
       }
       else {
           console.log("Not synced to partner");
@@ -294,4 +311,4 @@ app.post('/update/:setting', async (req, res) => {
 
 // Update usercolor
 
-app.listen(process.env.PORT || 3001);
+app.listen(3001);
